@@ -31,12 +31,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn(
+      <body 
+        className={cn(
           "min-h-screen bg-background font-sans antialiased",
           // geistSans.variable, // Removed geistSans.variable
           // geistMono.variable, // Removed geistMono.variable
           inter.variable
-        )}>
+        )}
+        suppressHydrationWarning={true}
+      >
         {children}
         <Toaster />
       </body>

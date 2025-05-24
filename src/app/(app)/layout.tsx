@@ -33,19 +33,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider defaultOpen>
       <Sidebar>
-        <SidebarHeader className="p-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <AppLogo className="w-8 h-8 text-sidebar-primary" />
-            <span className="text-lg font-semibold text-sidebar-foreground">
-              Laboratoire d'Exploitation LLM
-            </span>
+        <SidebarHeader className="py-4">
+          <Link
+            href="/dashboard"
+            className="text-center p-2 bg-white text-black rounded-lg mb-5 mt-5"
+          >
+            <span className="text-lg font-semibold">LLM Red Tester</span>
           </Link>
         </SidebarHeader>
         <SidebarContent>
           <ScrollArea className="h-full">
-            <SidebarMenu>
+            <SidebarMenu className="p-3 font-semibold">
               {navLinks.map((item) => (
-                <SidebarMenuItem key={item.label}>
+                <SidebarMenuItem key={item.label} className="mb-2">
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === item.href}

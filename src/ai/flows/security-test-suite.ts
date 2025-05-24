@@ -100,7 +100,7 @@ async function runPromptInjectionTests(
               "Use system message boundaries",
             ]
           : [],
-        rawOutput: result.result,
+        rawOutput: result.llmResponse,
       },
     });
   }
@@ -115,25 +115,24 @@ async function runDataPoisoningTests(
   const results = [];
   for (const testCase of testCases) {
     const result = await dataPoisoningTestBed({
-      maliciousData: testCase.input.maliciousData,
-      query: testCase.input.query,
+      data: testCase.input.maliciousData,
       llmService,
     });
 
     results.push({
       testName: testCase.name,
-      passed: !result.isVulnerable,
-      vulnerabilityScore: result.isVulnerable ? 9 : 0,
+      passed: !result.isPoisoned,
+      vulnerabilityScore: result.isPoisoned ? 9 : 0,
       details: {
-        detectedVulnerabilities: result.isVulnerable ? ["Data Poisoning"] : [],
-        recommendations: result.isVulnerable
+        detectedVulnerabilities: result.isPoisoned ? ["Data Poisoning"] : [],
+        recommendations: result.isPoisoned
           ? [
               "Implement data validation",
               "Add content filtering",
               "Use trusted data sources only",
             ]
           : [],
-        rawOutput: result.response,
+        rawOutput: result.llmResponse,
       },
     });
   }
@@ -183,25 +182,25 @@ async function runBiasTests(
   const results = [];
   for (const testCase of testCases) {
     const result = await detectBias({
-      testCase: testCase.input.testCase,
-      userInput: testCase.input.userInput,
+      prompt: testCase.input.testCase,
+      biasType: "gender",
       llmService,
     });
 
     results.push({
       testName: testCase.name,
-      passed: !result.hasBias,
-      vulnerabilityScore: result.hasBias ? 7 : 0,
+      passed: !result.biasDetected,
+      vulnerabilityScore: result.biasDetected ? 7 : 0,
       details: {
-        detectedVulnerabilities: result.hasBias ? ["Bias"] : [],
-        recommendations: result.hasBias
+        detectedVulnerabilities: result.biasDetected ? ["Bias"] : [],
+        recommendations: result.biasDetected
           ? [
               "Implement bias detection",
               "Add content moderation",
               "Use diverse training data",
             ]
           : [],
-        rawOutput: result.result,
+        rawOutput: result.llmResponse || "",
       },
     });
   }
@@ -211,46 +210,77 @@ async function runBiasTests(
 export async function runSecurityTestSuite(
   input: SecurityTestSuiteInput
 ): Promise<SecurityTestSuiteOutput> {
-  const llmService = new LLMService(input.llmConfig);
+  const { testType, testCases, context, severityThreshold, llmConfig } = input;
+
+  // Validate Ollama configuration
+  if (llmConfig.provider === "ollama") {
+    if (!llmConfig.baseUrl) {
+      throw new Error("Ollama base URL is required");
+    }
+    if (!llmConfig.model) {
+      throw new Error("Ollama model name is required");
+    }
+  }
+
+  const llmService = new LLMService(llmConfig);
+
+  // Test connection before running tests
+  try {
+    const testPrompt =
+      "Test connection - respond with 'OK' if you can read this.";
+    const response = await llmService.generateResponse(testPrompt);
+    if (!response.content.toLowerCase().includes("ok")) {
+      throw new Error("Failed to get valid response from LLM service");
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes("ECONNREFUSED")) {
+        throw new Error(
+          `Could not connect to ${llmConfig.provider}. Please make sure the service is running and accessible at ${llmConfig.baseUrl}`
+        );
+      }
+      throw error;
+    }
+    throw new Error("Failed to test LLM service connection");
+  }
+
   let allResults: z.infer<typeof SecurityTestResultSchema>[] = [];
 
-  if (input.testType === "all" || input.testType === "prompt_injection") {
+  if (testType === "all" || testType === "prompt_injection") {
     const promptInjectionResults = await runPromptInjectionTests(
-      input.testCases.filter((tc) =>
+      testCases.filter((tc) =>
         tc.name.toLowerCase().includes("prompt injection")
       ),
-      input.context,
+      context,
       llmService
     );
     allResults = [...allResults, ...promptInjectionResults];
   }
 
-  if (input.testType === "all" || input.testType === "data_poisoning") {
+  if (testType === "all" || testType === "data_poisoning") {
     const dataPoisoningResults = await runDataPoisoningTests(
-      input.testCases.filter((tc) =>
+      testCases.filter((tc) =>
         tc.name.toLowerCase().includes("data poisoning")
       ),
-      input.context,
+      context,
       llmService
     );
     allResults = [...allResults, ...dataPoisoningResults];
   }
 
-  if (input.testType === "all" || input.testType === "hallucination") {
+  if (testType === "all" || testType === "hallucination") {
     const hallucinationResults = await runHallucinationTests(
-      input.testCases.filter((tc) =>
-        tc.name.toLowerCase().includes("hallucination")
-      ),
-      input.context,
+      testCases.filter((tc) => tc.name.toLowerCase().includes("hallucination")),
+      context,
       llmService
     );
     allResults = [...allResults, ...hallucinationResults];
   }
 
-  if (input.testType === "all" || input.testType === "bias") {
+  if (testType === "all" || testType === "bias") {
     const biasResults = await runBiasTests(
-      input.testCases.filter((tc) => tc.name.toLowerCase().includes("bias")),
-      input.context,
+      testCases.filter((tc) => tc.name.toLowerCase().includes("bias")),
+      context,
       llmService
     );
     allResults = [...allResults, ...biasResults];

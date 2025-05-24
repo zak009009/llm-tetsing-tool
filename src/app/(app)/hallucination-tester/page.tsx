@@ -18,8 +18,8 @@ import { PageHeader } from "@/components/page-header";
 import { ResultCard, ResultItem } from "@/components/result-card";
 import {
   testHallucination,
-  type HallucinationTesterInput,
-  type HallucinationTesterOutput,
+  type HallucinationInput,
+  type HallucinationOutput,
 } from "@/ai/flows/hallucination-tester";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +45,7 @@ type HallucinationFormValues = z.infer<typeof formSchema>;
 export default function HallucinationTesterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<HallucinationTesterOutput | null>(null);
+  const [result, setResult] = useState<HallucinationOutput | null>(null);
   const { toast } = useToast();
 
   const form = useForm<HallucinationFormValues>({
@@ -62,17 +62,19 @@ export default function HallucinationTesterPage() {
     setError(null);
     setResult(null);
     try {
-      const output = await testHallucination(data);
+      const output = await testHallucination(data as HallucinationInput);
       setResult(output);
       toast({
-        title: "Test Complete",
-        description: "Hallucination test finished successfully.",
+        title: "Test Terminé",
+        description: "Test d'hallucination terminé avec succès.",
+        variant: "success",
       });
     } catch (e: any) {
-      setError(e.message || "An unexpected error occurred.");
+      setError(e.message || "Une erreur inattendue s'est produite.");
       toast({
-        title: "Test Failed",
-        description: e.message || "Could not run hallucination test.",
+        title: "Échec du Test",
+        description:
+          e.message || "Impossible d'exécuter le test d'hallucination.",
         variant: "destructive",
       });
     } finally {
@@ -107,10 +109,10 @@ export default function HallucinationTesterPage() {
                   name="originalPrompt"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Original Prompt</FormLabel>
+                      <FormLabel>Prompt Original</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Enter the prompt for the LLM to respond to."
+                          placeholder="Entrez le prompt pour que le modèle y réponde."
                           className="min-h-[100px] font-mono"
                           {...field}
                         />
@@ -124,10 +126,10 @@ export default function HallucinationTesterPage() {
                   name="llmContext"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>LLM Context (Optional)</FormLabel>
+                      <FormLabel>Contexte (Optionnel)</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Provide any context the LLM should use when responding to the prompt."
+                          placeholder="Fournissez un contexte que le modèle devrait utiliser pour répondre au prompt."
                           className="min-h-[100px] font-mono"
                           {...field}
                         />
@@ -141,7 +143,7 @@ export default function HallucinationTesterPage() {
                   disabled={isLoading}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
-                  {isLoading ? "Testing..." : "Run Test"}
+                  {isLoading ? "Test en cours..." : "Lancer le Test"}
                 </Button>
               </form>
             </Form>
@@ -159,19 +161,16 @@ export default function HallucinationTesterPage() {
             {result ? (
               <div className="space-y-4">
                 <Alert
-                  variant={result.isHallucinating ? "destructive" : "default"}
+                  variant={result.isHallucinating ? "destructive" : "success"}
                 >
-                  {result.isHallucinating ? (
-                    <AlertTriangle className="h-4 w-4" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
                   <AlertTitle>
                     {result.isHallucinating
                       ? "Hallucination Détectée"
                       : "Aucune Hallucination Détectée"}
                   </AlertTitle>
-                  <AlertDescription>{result.analysis}</AlertDescription>
+                  <AlertDescription>
+                    Confiance: {(result.confidence * 100).toFixed(1)}%
+                  </AlertDescription>
                 </Alert>
 
                 <div className="space-y-2">
@@ -184,9 +183,11 @@ export default function HallucinationTesterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <FormLabel>Niveau de Confiance</FormLabel>
+                  <FormLabel>Analyse</FormLabel>
                   <div className="p-4 rounded-lg bg-muted">
-                    <div className="text-sm">{result.confidence}%</div>
+                    <pre className="whitespace-pre-wrap text-sm">
+                      {result.explanation}
+                    </pre>
                   </div>
                 </div>
               </div>

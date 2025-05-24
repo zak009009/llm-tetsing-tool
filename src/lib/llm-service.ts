@@ -34,29 +34,47 @@ export class LLMService {
   }
 
   private async generateOllamaResponse(prompt: string): Promise<LLMResponse> {
-    const response = await fetch(`${this.config.baseUrl}/api/generate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    try {
+      const response = await fetch(`${this.config.baseUrl}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: this.config.model,
+          messages: [{ role: "user", content: prompt }],
+          stream: false,
+          options: {
+            temperature: this.config.temperature,
+            num_predict: this.config.maxTokens,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Ollama API error (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log(response);
+      return {
+        content: data.message?.content || data.response || "",
         model: this.config.model,
-        prompt,
-        temperature: this.config.temperature,
-        stream: false,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ollama API error: ${response.statusText}`);
+        provider: "ollama",
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes("ECONNREFUSED")) {
+          throw new Error(
+            "Could not connect to Ollama. Please make sure Ollama is running and accessible at " +
+              this.config.baseUrl
+          );
+        }
+        throw error;
+      }
+      throw new Error("Failed to generate response from Ollama");
     }
-
-    const data = await response.json();
-    return {
-      content: data.response,
-      model: this.config.model,
-      provider: "ollama",
-    };
   }
 
   private async generateOpenAIResponse(prompt: string): Promise<LLMResponse> {

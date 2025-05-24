@@ -24,25 +24,47 @@ export function updateServerConfig(config: {
 
 export async function initializeLLMService(config: LLMConfig) {
   try {
+    // Validate Ollama configuration
+    if (config.provider === "ollama") {
+      if (!config.baseUrl) {
+        throw new Error("Ollama base URL is required");
+      }
+      if (!config.model) {
+        throw new Error("Ollama model name is required");
+      }
+    }
+
     const llmService = new LLMService(config);
 
     // Test the connection immediately
     const testPrompt =
       "Test connection - respond with 'OK' if you can read this.";
-    const response = await llmService.generateResponse(testPrompt);
-    const isConnected = response.content.toLowerCase().includes("ok");
+    try {
+      const response = await llmService.generateResponse(testPrompt);
+      const isConnected = response.content.toLowerCase().includes("ok");
 
-    if (!isConnected) {
-      throw new Error("Failed to get valid response from LLM service");
+      if (!isConnected) {
+        throw new Error("Failed to get valid response from LLM service");
+      }
+
+      updateServerConfig({
+        llmService,
+        isConnected: true,
+        connectionError: null,
+      });
+
+      return llmService;
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes("ECONNREFUSED")) {
+          throw new Error(
+            `Could not connect to ${config.provider}. Please make sure the service is running and accessible at ${config.baseUrl}`
+          );
+        }
+        throw error;
+      }
+      throw new Error("Failed to test LLM service connection");
     }
-
-    updateServerConfig({
-      llmService,
-      isConnected: true,
-      connectionError: null,
-    });
-
-    return llmService;
   } catch (error) {
     updateServerConfig({
       llmService: null,

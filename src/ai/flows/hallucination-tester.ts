@@ -9,11 +9,12 @@
 
 import { z } from "zod";
 import { LLMService } from "@/lib/llm-service";
+import { useAppConfig } from "@/hooks/use-app-config";
 
 const HallucinationInputSchema = z.object({
   originalPrompt: z.string(),
   llmContext: z.string().optional(),
-  llmService: z.instanceof(LLMService),
+  llmService: z.instanceof(LLMService).optional(),
 });
 
 const HallucinationOutputSchema = z.object({
@@ -21,6 +22,7 @@ const HallucinationOutputSchema = z.object({
   confidence: z.number(),
   explanation: z.string(),
   llmResponseToOriginalPrompt: z.string(),
+  analysis: z.string().optional(),
 });
 
 export type HallucinationInput = z.infer<typeof HallucinationInputSchema>;
@@ -29,11 +31,25 @@ export type HallucinationOutput = z.infer<typeof HallucinationOutputSchema>;
 export async function testHallucination(
   input: HallucinationInput
 ): Promise<HallucinationOutput> {
-  const { originalPrompt, llmContext, llmService } = input;
+  const { originalPrompt, llmContext, llmService: providedService } = input;
+
+  // Use the provided service or get it from the app config
+  const { llmService, isConnected, connectionError } = useAppConfig.getState();
+  const service = providedService || llmService;
+
+  if (!service || !isConnected) {
+    return {
+      isHallucinating: false,
+      confidence: 0,
+      explanation: connectionError || "LLM service not available",
+      llmResponseToOriginalPrompt: "Error: Could not generate response",
+      analysis: "Error: LLM service not available",
+    };
+  }
 
   try {
     // Get response from LLM
-    const response = await llmService.generateResponse(originalPrompt);
+    const response = await service.generateResponse(originalPrompt);
 
     // Analyze the response for signs of hallucination
     const analysisPrompt = `Analyze this response for signs of hallucination:
@@ -48,7 +64,7 @@ Consider:
 
 Provide a confidence score (0-1) and explanation.`;
 
-    const analysis = await llmService.generateResponse(analysisPrompt);
+    const analysis = await service.generateResponse(analysisPrompt);
 
     // Parse the analysis response
     const analysisText = analysis.content.toLowerCase();
@@ -64,14 +80,19 @@ Provide a confidence score (0-1) and explanation.`;
       confidence,
       explanation: analysis.content,
       llmResponseToOriginalPrompt: response.content,
+      analysis: analysis.content,
     };
   } catch (error) {
     console.error("Error in hallucination test:", error);
     return {
       isHallucinating: false,
       confidence: 0,
-      explanation: "Error occurred during testing",
+      explanation:
+        error instanceof Error
+          ? error.message
+          : "Error occurred during testing",
       llmResponseToOriginalPrompt: "Error: Could not generate response",
+      analysis: "Error occurred during testing",
     };
   }
 }

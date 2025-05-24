@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -16,126 +16,189 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/page-header";
 import { ResultCard, ResultItem } from "@/components/result-card";
-import { detectBias, type BiasDetectorInput, type BiasDetectorOutput, type BiasItem } from "@/ai/flows/bias-detector";
+import {
+  detectBias,
+  type BiasDetectorInput,
+  type BiasDetectorOutput,
+  type BiasItem,
+} from "@/ai/flows/bias-detector";
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 
 const formSchema = z.object({
-  textToAnalyze: z.string().min(20, "Text to analyze must be at least 20 characters."),
+  textToAnalyze: z
+    .string()
+    .min(20, "Text to analyze must be at least 20 characters."),
 });
 
 type BiasDetectorFormValues = z.infer<typeof formSchema>;
 
-const BiasSeverityBadge: React.FC<{ severity: BiasItem['severity'] }> = ({ severity }) => {
+const BiasSeverityBadge: React.FC<{ severity: BiasItem["severity"] }> = ({
+  severity,
+}) => {
   let variant: "default" | "secondary" | "destructive" = "default";
   if (severity === "Medium") variant = "secondary";
   if (severity === "High") variant = "destructive";
   return <Badge variant={variant}>{severity}</Badge>;
 };
 
-
 export default function BiasDetectorPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [testCase, setTestCase] = useState("");
+  const [userInput, setUserInput] = useState("");
   const [result, setResult] = useState<BiasDetectorOutput | null>(null);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<BiasDetectorFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      textToAnalyze: "The new CEO, a young woman, surprisingly led the company to record profits. Meanwhile, the older board members were skeptical of her modern approach.",
-    },
-  });
-
-  async function onSubmit(data: BiasDetectorFormValues) {
-    setIsLoading(true);
-    setError(null);
-    setResult(null);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
     try {
-      const output = await detectBias(data);
-      setResult(output);
+      const response = await detectBias({
+        testCase,
+        userInput,
+      } as BiasDetectorInput);
+      setResult(response);
       toast({
         title: "Analysis Complete",
         description: "Bias detection analysis finished successfully.",
       });
-    } catch (e: any) {
-      setError(e.message || "An unexpected error occurred.");
+    } catch (error) {
+      console.error("Error testing bias:", error);
       toast({
         title: "Analysis Failed",
-        description: e.message || "Could not run bias detection analysis.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="container mx-auto py-2">
+    <div className="container mx-auto py-6 space-y-8">
       <PageHeader
-        title="Bias Detector"
-        description="Analyze text for potential biases related to gender, race, age, and other categories."
+        title="Détecteur de Biais"
+        description="Évaluez la présence de biais dans les réponses de votre modèle de langage."
       />
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>Text for Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="textToAnalyze"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Text to Analyze</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter the text you want to analyze for potential biases."
-                        className="min-h-[150px] font-mono"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" disabled={isLoading} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                {isLoading ? "Analyzing..." : "Run Analysis"}
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-primary/10 hover:border-primary/20">
+          <CardHeader>
+            <CardTitle>Configuration du Test</CardTitle>
+            <CardDescription>
+              Définissez le cas de test et l'entrée utilisateur pour évaluer les
+              biais.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="testCase">Cas de Test</Label>
+                <Textarea
+                  id="testCase"
+                  placeholder="Entrez le cas de test à évaluer..."
+                  value={testCase}
+                  onChange={(e) => setTestCase(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="userInput">Entrée Utilisateur</Label>
+                <Textarea
+                  id="userInput"
+                  placeholder="Entrez l'entrée utilisateur à tester..."
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full bg-primary hover:bg-primary/90"
+                disabled={loading}
+              >
+                {loading ? "Test en cours..." : "Lancer le Test"}
               </Button>
             </form>
-          </Form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {(isLoading || error || result) && (
-        <ResultCard title="Analysis Report" isLoading={isLoading} error={error}>
-          {result && (
-            <>
-              <ResultItem 
-                label="Overall Assessment" 
-                value={<pre className="whitespace-pre-wrap p-2 bg-muted rounded-md">{result.overallAssessment}</pre>} 
-              />
-              {result.detectedBiases && result.detectedBiases.length > 0 ? (
-                <div className="mt-4">
-                  <h3 className="font-semibold text-lg mb-2">Detected Biases:</h3>
-                  {result.detectedBiases.map((bias, index) => (
-                    <Card key={index} className="mb-4 p-4 bg-secondary/50">
-                      <ResultItem label="Bias Category" value={<Badge variant="outline">{bias.biasCategory}</Badge>} />
-                      <ResultItem label="Biased Statement" value={<pre className="whitespace-pre-wrap p-2 bg-muted rounded-md font-mono text-sm">{bias.biasedStatement}</pre>} />
-                      <ResultItem label="Reasoning" value={<p className="text-sm">{bias.reasoning}</p>} />
-                      <ResultItem label="Severity" value={<BiasSeverityBadge severity={bias.severity} />} />
-                    </Card>
-                  ))}
+        <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-primary/10 hover:border-primary/20">
+          <CardHeader>
+            <CardTitle>Résultats du Test</CardTitle>
+            <CardDescription>
+              Analysez les résultats de votre test de détection de biais.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {result ? (
+              <div className="space-y-4">
+                <Alert variant={result.hasBias ? "destructive" : "default"}>
+                  {result.hasBias ? (
+                    <AlertTriangle className="h-4 w-4" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  <AlertTitle>
+                    {result.hasBias ? "Biais Détecté" : "Aucun Biais Détecté"}
+                  </AlertTitle>
+                  <AlertDescription>{result.explanation}</AlertDescription>
+                </Alert>
+
+                <div className="space-y-2">
+                  <Label>Réponse du Modèle</Label>
+                  <div className="p-4 rounded-lg bg-muted">
+                    <pre className="whitespace-pre-wrap text-sm">
+                      {result.result}
+                    </pre>
+                  </div>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground mt-4">No specific biases detected based on the analysis.</p>
-              )}
-            </>
-          )}
-        </ResultCard>
-      )}
+
+                <div className="space-y-2">
+                  <Label>Niveau de Confiance</Label>
+                  <div className="p-4 rounded-lg bg-muted">
+                    <div className="text-sm">{result.confidence}%</div>
+                  </div>
+                </div>
+
+                {result.detectedBiases && result.detectedBiases.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Types de Biais Détectés</Label>
+                    <div className="p-4 rounded-lg bg-muted">
+                      <ul className="list-disc list-inside space-y-1 text-sm">
+                        {result.detectedBiases.map((bias, index) => (
+                          <li key={index}>{bias.biasCategory}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                Aucun résultat à afficher. Lancez un test pour voir les
+                résultats.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

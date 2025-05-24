@@ -3,10 +3,11 @@ import {
   AlertTriangle,
   FlaskConical,
   Settings,
-  FileQuestion, 
-  Scale,      // Changed from Balance
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+  FileQuestion,
+  Scale, // Changed from Balance
+  ShieldCheck,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export interface NavLink {
   href: string;
@@ -17,39 +18,45 @@ export interface NavLink {
 
 export const navLinks: NavLink[] = [
   {
-    href: '/dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    tooltip: 'Overview',
+    href: "/dashboard",
+    label: "Tableau de Bord",
+    icon: ShieldCheck,
+    tooltip: "Vue d'ensemble des tests",
   },
   {
-    href: '/prompt-injection',
-    label: 'Prompt Injection',
+    href: "/security-test-suite",
+    label: "Suite de Tests",
+    icon: ShieldCheck,
+    tooltip: "Tests de sécurité complets",
+  },
+  {
+    href: "/prompt-injection",
+    label: "Injection de Prompt",
     icon: AlertTriangle,
-    tooltip: 'Test Prompt Injection',
+    tooltip: "Test d'injection de prompt",
   },
   {
-    href: '/data-poisoning',
-    label: 'Data Poisoning',
+    href: "/data-poisoning",
+    label: "Empoisonnement de Données",
     icon: FlaskConical,
-    tooltip: 'Test Data Poisoning',
+    tooltip: "Test d'empoisonnement de données",
   },
   {
-    href: '/hallucination-tester', 
-    label: 'Hallucination Test',
+    href: "/hallucination-tester",
+    label: "Test d'Hallucination",
     icon: FileQuestion,
-    tooltip: 'Test for LLM Hallucinations',
+    tooltip: "Test d'hallucination",
   },
   {
-    href: '/bias-detector', 
-    label: 'Bias Detector',
+    href: "/bias-detector",
+    label: "Détecteur de Biais",
     icon: Scale, // Changed from Balance
-    tooltip: 'Detect Bias in LLM Outputs',
+    tooltip: "Détection de biais",
   },
   {
-    href: '/configuration',
-    label: 'Configuration',
+    href: "/configuration",
+    label: "Configuration",
     icon: Settings,
-    tooltip: 'App Settings',
+    tooltip: "Paramètres de l'application",
   },
 ];

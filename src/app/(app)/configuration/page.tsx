@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -23,19 +23,27 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { useAppConfig, type LLMProvider } from "@/hooks/use-app-config";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
-  llmProvider: z.custom<LLMProvider>(),
-  ollamaBaseUrl: z.string().url().optional().or(z.literal('')),
-  apiEndpoint: z.string().url().optional().or(z.literal('')),
+  provider: z.string(),
   apiKey: z.string().optional(),
-  modelName: z.string().min(1, "Model name is required."),
+  model: z.string().optional(),
+  endpoint: z.string().optional(),
 });
 
-type ConfigurationFormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
 export default function ConfigurationPage() {
   const {
@@ -51,158 +59,184 @@ export default function ConfigurationPage() {
     setModelName,
   } = useAppConfig();
 
-  const form = useForm<ConfigurationFormValues>({
+  const [darkMode, setDarkMode] = useState(false);
+  const [notifications, setNotifications] = useState(false);
+  const [detailedLogging, setDetailedLogging] = useState(false);
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      llmProvider,
-      ollamaBaseUrl,
-      apiEndpoint,
-      apiKey,
-      modelName,
+      provider: "openai",
+      apiKey: "",
+      model: "",
+      endpoint: "",
     },
   });
 
-  const watchedProvider = form.watch("llmProvider");
-
-  useEffect(() => {
-    form.reset({
-      llmProvider,
-      ollamaBaseUrl,
-      apiEndpoint,
-      apiKey,
-      modelName,
-    });
-  }, [llmProvider, ollamaBaseUrl, apiEndpoint, apiKey, modelName, form]);
-
-
-  function onSubmit(data: ConfigurationFormValues) {
-    setLLMProvider(data.llmProvider);
-    if (data.ollamaBaseUrl) setOllamaBaseUrl(data.ollamaBaseUrl);
-    if (data.apiEndpoint) setApiEndpoint(data.apiEndpoint);
-    if (data.apiKey) setApiKey(data.apiKey);
-    setModelName(data.modelName);
-
-    toast({
-      title: "Configuration Saved",
-      description: "Your LLM settings have been updated.",
-    });
-  }
+  const onSubmit = (data: FormValues) => {
+    console.log(data);
+    // Handle form submission
+  };
 
   return (
-    <div className="container mx-auto py-2">
+    <div className="container mx-auto py-6 space-y-8">
       <PageHeader
         title="Configuration"
-        description="Manage settings for LLM connections and application parameters."
+        description="Personnalisez les connexions LLM et les paramètres de l'application."
       />
-      <Card className="max-w-2xl mx-auto shadow-lg">
-        <CardHeader>
-          <CardTitle>LLM Settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="llmProvider"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>LLM Provider</FormLabel>
+
+      <Tabs defaultValue="llm" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="llm">Connexions LLM</TabsTrigger>
+          <TabsTrigger value="settings">Paramètres</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="llm">
+          <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-primary/10 hover:border-primary/20">
+            <CardHeader>
+              <CardTitle>Connexions LLM</CardTitle>
+              <CardDescription>
+                Configurez vos connexions aux différents fournisseurs de modèles
+                de langage.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="provider">Fournisseur</Label>
                     <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={form.watch("provider")}
+                      onValueChange={(value) =>
+                        form.setValue("provider", value)
+                      }
                     >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an LLM provider" />
-                        </SelectTrigger>
-                      </FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un fournisseur" />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="genkit_default">Genkit Default (Gemini)</SelectItem>
-                        <SelectItem value="ollama">Local Ollama</SelectItem>
-                        <SelectItem value="external_api">External API</SelectItem>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="anthropic">Anthropic</SelectItem>
+                        <SelectItem value="ollama">Ollama</SelectItem>
+                        <SelectItem value="custom">Personnalisé</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormDescription>
-                      Choose your LLM provider. 'Genkit Default' uses the model configured in your Genkit setup.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </div>
 
-              {watchedProvider === "ollama" && (
-                <FormField
-                  control={form.control}
-                  name="ollamaBaseUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ollama Base URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="http://localhost:11434" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        The base URL for your local Ollama instance.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
+                  <div className="space-y-2">
+                    <Label htmlFor="apiKey">Clé API</Label>
+                    <Input
+                      id="apiKey"
+                      type="password"
+                      placeholder="Entrez votre clé API"
+                      {...form.register("apiKey")}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="model">Modèle</Label>
+                    <Input
+                      id="model"
+                      placeholder="Entrez le nom du modèle"
+                      {...form.register("model")}
+                    />
+                  </div>
+
+                  {form.watch("provider") === "ollama" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="endpoint">
+                        Point de terminaison Ollama
+                      </Label>
+                      <Input
+                        id="endpoint"
+                        placeholder="http://localhost:11434"
+                        {...form.register("endpoint")}
+                      />
+                    </div>
                   )}
-                />
-              )}
 
-              {watchedProvider === "external_api" && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="apiEndpoint"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>API Endpoint</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://api.example.com/v1/chat/completions" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                  {form.watch("provider") === "custom" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="endpoint">
+                        Point de terminaison personnalisé
+                      </Label>
+                      <Input
+                        id="endpoint"
+                        placeholder="Entrez l'URL du point de terminaison"
+                        {...form.register("endpoint")}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90"
+                >
+                  Enregistrer la Configuration
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-primary/10 hover:border-primary/20">
+            <CardHeader>
+              <CardTitle>Paramètres de l'Application</CardTitle>
+              <CardDescription>
+                Personnalisez le comportement de l'application.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Mode Sombre</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Activer le thème sombre pour l'interface
+                    </p>
+                  </div>
+                  <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Notifications</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Activer les notifications pour les tests
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notifications}
+                    onCheckedChange={setNotifications}
                   />
-                  <FormField
-                    control={form.control}
-                    name="apiKey"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>API Key</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Your API Key" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Journalisation Détaillée</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Enregistrer les détails des tests dans les journaux
+                    </p>
+                  </div>
+                  <Switch
+                    checked={detailedLogging}
+                    onCheckedChange={setDetailedLogging}
                   />
-                </>
-              )}
-              
-              <FormField
-                control={form.control}
-                name="modelName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Model Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder={llmProvider === 'genkit_default' ? "Uses Genkit configuration" : "e.g., llama3, gpt-4"} {...field} 
-                       disabled={llmProvider === 'genkit_default'} />
-                    </FormControl>
-                    <FormDescription>
-                      Specify the model name to use. For 'Genkit Default', this is illustrative as the actual model is set in `genkit.ts`.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground">Save Configuration</Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                </div>
+              </div>
+
+              <Button className="w-full bg-primary hover:bg-primary/90">
+                Enregistrer les Paramètres
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

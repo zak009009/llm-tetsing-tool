@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -16,13 +16,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/page-header";
 import { ResultCard, ResultItem } from "@/components/result-card";
-import { testHallucination, type HallucinationTesterInput, type HallucinationTesterOutput } from "@/ai/flows/hallucination-tester";
+import {
+  testHallucination,
+  type HallucinationTesterInput,
+  type HallucinationTesterOutput,
+} from "@/ai/flows/hallucination-tester";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 
 const formSchema = z.object({
-  originalPrompt: z.string().min(10, "Original prompt must be at least 10 characters."),
+  originalPrompt: z
+    .string()
+    .min(10, "Original prompt must be at least 10 characters."),
   llmContext: z.string().optional(),
 });
 
@@ -38,7 +52,8 @@ export default function HallucinationTesterPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       originalPrompt: "Explain the process of photosynthesis in simple terms.",
-      llmContext: "Photosynthesis is a process used by plants, algae, and some bacteria to convert light energy into chemical energy.",
+      llmContext:
+        "Photosynthesis is a process used by plants, algae, and some bacteria to convert light energy into chemical energy.",
     },
   });
 
@@ -66,78 +81,124 @@ export default function HallucinationTesterPage() {
   }
 
   return (
-    <div className="container mx-auto py-2">
+    <div className="container mx-auto py-6 space-y-8">
       <PageHeader
-        title="Hallucination Tester"
-        description="Test if an LLM's response contains fabricated or unverified information (hallucinations)."
+        title="Testeur d'Hallucination"
+        description="Évaluez la tendance de votre modèle de langage à générer des informations fabriquées."
       />
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>Test Parameters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="originalPrompt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Original Prompt</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter the prompt for the LLM to respond to."
-                        className="min-h-[100px] font-mono"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="llmContext"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>LLM Context (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Provide any context the LLM should use when responding to the prompt."
-                        className="min-h-[100px] font-mono"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" disabled={isLoading} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                {isLoading ? "Testing..." : "Run Test"}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
 
-      {(isLoading || error || result) && (
-        <ResultCard title="Test Results" isLoading={isLoading} error={error}>
-          {result && (
-            <>
-              <ResultItem
-                label="Hallucination Detected"
-                value={
-                  <Badge variant={result.isHallucinating ? "destructive" : "default"}>
-                    {result.isHallucinating ? "Yes" : "No"}
-                  </Badge>
-                }
-              />
-              <ResultItem label="LLM Response to Original Prompt" value={<pre className="whitespace-pre-wrap p-2 bg-muted rounded-md">{result.llmResponseToOriginalPrompt}</pre>} />
-              <ResultItem label="Analysis" value={<pre className="whitespace-pre-wrap p-2 bg-muted rounded-md">{result.analysis}</pre>} />
-            </>
-          )}
-        </ResultCard>
-      )}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-primary/10 hover:border-primary/20">
+          <CardHeader>
+            <CardTitle>Configuration du Test</CardTitle>
+            <CardDescription>
+              Définissez le cas de test et l'entrée utilisateur pour évaluer les
+              hallucinations.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
+                <FormField
+                  control={form.control}
+                  name="originalPrompt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Original Prompt</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Enter the prompt for the LLM to respond to."
+                          className="min-h-[100px] font-mono"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="llmContext"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>LLM Context (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Provide any context the LLM should use when responding to the prompt."
+                          className="min-h-[100px] font-mono"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  {isLoading ? "Testing..." : "Run Test"}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-primary/10 hover:border-primary/20">
+          <CardHeader>
+            <CardTitle>Résultats du Test</CardTitle>
+            <CardDescription>
+              Analysez les résultats de votre test d'hallucination.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {result ? (
+              <div className="space-y-4">
+                <Alert
+                  variant={result.isHallucinating ? "destructive" : "default"}
+                >
+                  {result.isHallucinating ? (
+                    <AlertTriangle className="h-4 w-4" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  <AlertTitle>
+                    {result.isHallucinating
+                      ? "Hallucination Détectée"
+                      : "Aucune Hallucination Détectée"}
+                  </AlertTitle>
+                  <AlertDescription>{result.analysis}</AlertDescription>
+                </Alert>
+
+                <div className="space-y-2">
+                  <FormLabel>Réponse du Modèle</FormLabel>
+                  <div className="p-4 rounded-lg bg-muted">
+                    <pre className="whitespace-pre-wrap text-sm">
+                      {result.llmResponseToOriginalPrompt}
+                    </pre>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <FormLabel>Niveau de Confiance</FormLabel>
+                  <div className="p-4 rounded-lg bg-muted">
+                    <div className="text-sm">{result.confidence}%</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                Aucun résultat à afficher. Lancez un test pour voir les
+                résultats.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

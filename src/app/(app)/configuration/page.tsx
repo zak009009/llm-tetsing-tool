@@ -30,17 +30,20 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { useAppConfig, type LLMProvider } from "@/hooks/use-app-config";
-import { useEffect, useState } from "react";
+import { useAppConfig } from "@/hooks/use-app-config";
+import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 
 const formSchema = z.object({
-  provider: z.string(),
+  provider: z.enum(["ollama", "openai", "anthropic", "custom"]),
   apiKey: z.string().optional(),
-  model: z.string().optional(),
-  endpoint: z.string().optional(),
+  model: z.string().min(1, "Model name is required"),
+  endpoint: z.string().url().optional(),
+  temperature: z.number().min(0).max(2),
+  maxTokens: z.number().min(1).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -52,30 +55,65 @@ export default function ConfigurationPage() {
     apiEndpoint,
     apiKey,
     modelName,
+    temperature,
+    maxTokens,
     setLLMProvider,
     setOllamaBaseUrl,
     setApiEndpoint,
     setApiKey,
     setModelName,
+    setTemperature,
+    setMaxTokens,
   } = useAppConfig();
-
-  const [darkMode, setDarkMode] = useState(false);
-  const [notifications, setNotifications] = useState(false);
-  const [detailedLogging, setDetailedLogging] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      provider: "openai",
-      apiKey: "",
-      model: "",
-      endpoint: "",
+      provider: llmProvider,
+      apiKey: apiKey,
+      model: modelName,
+      endpoint: llmProvider === "ollama" ? ollamaBaseUrl : apiEndpoint,
+      temperature: temperature,
+      maxTokens: maxTokens,
     },
   });
 
+  useEffect(() => {
+    form.reset({
+      provider: llmProvider,
+      apiKey: apiKey,
+      model: modelName,
+      endpoint: llmProvider === "ollama" ? ollamaBaseUrl : apiEndpoint,
+      temperature: temperature,
+      maxTokens: maxTokens,
+    });
+  }, [
+    llmProvider,
+    ollamaBaseUrl,
+    apiEndpoint,
+    apiKey,
+    modelName,
+    temperature,
+    maxTokens,
+  ]);
+
   const onSubmit = (data: FormValues) => {
-    console.log(data);
-    // Handle form submission
+    setLLMProvider(data.provider);
+    setModelName(data.model);
+    setTemperature(data.temperature);
+    if (data.maxTokens) setMaxTokens(data.maxTokens);
+
+    if (data.provider === "ollama") {
+      setOllamaBaseUrl(data.endpoint || "http://127.0.0.1:11434");
+    } else {
+      setApiEndpoint(data.endpoint || "");
+      setApiKey(data.apiKey || "");
+    }
+
+    toast({
+      title: "Configuration Updated",
+      description: "Your LLM settings have been saved successfully.",
+    });
   };
 
   return (
@@ -101,84 +139,157 @@ export default function ConfigurationPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
-              >
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="provider">Fournisseur</Label>
-                    <Select
-                      value={form.watch("provider")}
-                      onValueChange={(value) =>
-                        form.setValue("provider", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un fournisseur" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="openai">OpenAI</SelectItem>
-                        <SelectItem value="anthropic">Anthropic</SelectItem>
-                        <SelectItem value="ollama">Ollama</SelectItem>
-                        <SelectItem value="custom">Personnalisé</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="apiKey">Clé API</Label>
-                    <Input
-                      id="apiKey"
-                      type="password"
-                      placeholder="Entrez votre clé API"
-                      {...form.register("apiKey")}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="model">Modèle</Label>
-                    <Input
-                      id="model"
-                      placeholder="Entrez le nom du modèle"
-                      {...form.register("model")}
-                    />
-                  </div>
-
-                  {form.watch("provider") === "ollama" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="endpoint">
-                        Point de terminaison Ollama
-                      </Label>
-                      <Input
-                        id="endpoint"
-                        placeholder="http://localhost:11434"
-                        {...form.register("endpoint")}
-                      />
-                    </div>
-                  )}
-
-                  {form.watch("provider") === "custom" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="endpoint">
-                        Point de terminaison personnalisé
-                      </Label>
-                      <Input
-                        id="endpoint"
-                        placeholder="Entrez l'URL du point de terminaison"
-                        {...form.register("endpoint")}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full bg-primary hover:bg-primary/90"
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-4"
                 >
-                  Enregistrer la Configuration
-                </Button>
-              </form>
+                  <FormField
+                    control={form.control}
+                    name="provider"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fournisseur</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sélectionner un fournisseur" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="ollama">Ollama</SelectItem>
+                            <SelectItem value="openai">OpenAI</SelectItem>
+                            <SelectItem value="anthropic">Anthropic</SelectItem>
+                            <SelectItem value="custom">Personnalisé</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="model"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Modèle</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Entrez le nom du modèle"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("provider") !== "ollama" && (
+                    <FormField
+                      control={form.control}
+                      name="apiKey"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Clé API</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Entrez votre clé API"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <FormField
+                    control={form.control}
+                    name="endpoint"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {form.watch("provider") === "ollama"
+                            ? "Point de terminaison Ollama"
+                            : "Point de terminaison API"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder={
+                              form.watch("provider") === "ollama"
+                                ? "http://127.0.0.1:11434"
+                                : "Entrez l'URL du point de terminaison"
+                            }
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="temperature"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Température</FormLabel>
+                        <FormControl>
+                          <Slider
+                            min={0}
+                            max={2}
+                            step={0.1}
+                            value={[field.value]}
+                            onValueChange={([value]) => field.onChange(value)}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Contrôle la créativité des réponses (0 = déterministe,
+                          2 = très créatif)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="maxTokens"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre maximum de tokens</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min={1}
+                            placeholder="Entrez le nombre maximum de tokens"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Limite la longueur des réponses générées
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-primary hover:bg-primary/90"
+                  >
+                    Enregistrer la Configuration
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         </TabsContent>
@@ -200,7 +311,7 @@ export default function ConfigurationPage() {
                       Activer le thème sombre pour l'interface
                     </p>
                   </div>
-                  <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+                  <Switch />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -210,10 +321,7 @@ export default function ConfigurationPage() {
                       Activer les notifications pour les tests
                     </p>
                   </div>
-                  <Switch
-                    checked={notifications}
-                    onCheckedChange={setNotifications}
-                  />
+                  <Switch />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -223,10 +331,7 @@ export default function ConfigurationPage() {
                       Enregistrer les détails des tests dans les journaux
                     </p>
                   </div>
-                  <Switch
-                    checked={detailedLogging}
-                    onCheckedChange={setDetailedLogging}
-                  />
+                  <Switch />
                 </div>
               </div>
 

@@ -1,28 +1,29 @@
 "use server";
 
-import { ai } from "@/ai/genkit";
-import { z } from "genkit";
+import { z } from "zod";
 import { testPromptInjection } from "./prompt-injection-tester";
 import { dataPoisoningTestBed } from "./data-poisoning-test-bed";
 import { testHallucination } from "./hallucination-tester";
+import { detectBias } from "./bias-detector";
 import { LLMService } from "@/lib/llm-service";
 import { LLMConfig } from "@/lib/llm-config";
+
+const TestCaseSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  input: z.record(z.string()),
+  expectedBehavior: z.string(),
+});
 
 const SecurityTestSuiteInputSchema = z.object({
   testType: z.enum([
     "prompt_injection",
     "data_poisoning",
     "hallucination",
+    "bias",
     "all",
   ]),
-  testCases: z.array(
-    z.object({
-      name: z.string(),
-      description: z.string(),
-      input: z.record(z.string()),
-      expectedBehavior: z.string(),
-    })
-  ),
+  testCases: z.array(TestCaseSchema),
   context: z.string().optional(),
   severityThreshold: z.number().min(0).max(10).default(7),
   llmConfig: z.object({
@@ -39,6 +40,7 @@ const SecurityTestSuiteInputSchema = z.object({
 export type SecurityTestSuiteInput = z.infer<
   typeof SecurityTestSuiteInputSchema
 >;
+export type TestCase = z.infer<typeof TestCaseSchema>;
 
 const SecurityTestResultSchema = z.object({
   testName: z.string(),
@@ -71,9 +73,9 @@ export type SecurityTestSuiteOutput = z.infer<
 >;
 
 async function runPromptInjectionTests(
-  testCases: any[],
-  context?: string,
-  llmService?: LLMService
+  testCases: TestCase[],
+  context: string | undefined,
+  llmService: LLMService
 ) {
   const results = [];
   for (const testCase of testCases) {
@@ -106,9 +108,9 @@ async function runPromptInjectionTests(
 }
 
 async function runDataPoisoningTests(
-  testCases: any[],
-  context?: string,
-  llmService?: LLMService
+  testCases: TestCase[],
+  context: string | undefined,
+  llmService: LLMService
 ) {
   const results = [];
   for (const testCase of testCases) {
@@ -139,9 +141,9 @@ async function runDataPoisoningTests(
 }
 
 async function runHallucinationTests(
-  testCases: any[],
-  context?: string,
-  llmService?: LLMService
+  testCases: TestCase[],
+  context: string | undefined,
+  llmService: LLMService
 ) {
   const results = [];
   for (const testCase of testCases) {
@@ -167,6 +169,39 @@ async function runHallucinationTests(
             ]
           : [],
         rawOutput: result.llmResponseToOriginalPrompt,
+      },
+    });
+  }
+  return results;
+}
+
+async function runBiasTests(
+  testCases: TestCase[],
+  context: string | undefined,
+  llmService: LLMService
+) {
+  const results = [];
+  for (const testCase of testCases) {
+    const result = await detectBias({
+      testCase: testCase.input.testCase,
+      userInput: testCase.input.userInput,
+      llmService,
+    });
+
+    results.push({
+      testName: testCase.name,
+      passed: !result.hasBias,
+      vulnerabilityScore: result.hasBias ? 7 : 0,
+      details: {
+        detectedVulnerabilities: result.hasBias ? ["Bias"] : [],
+        recommendations: result.hasBias
+          ? [
+              "Implement bias detection",
+              "Add content moderation",
+              "Use diverse training data",
+            ]
+          : [],
+        rawOutput: result.result,
       },
     });
   }
@@ -210,6 +245,15 @@ export async function runSecurityTestSuite(
       llmService
     );
     allResults = [...allResults, ...hallucinationResults];
+  }
+
+  if (input.testType === "all" || input.testType === "bias") {
+    const biasResults = await runBiasTests(
+      input.testCases.filter((tc) => tc.name.toLowerCase().includes("bias")),
+      input.context,
+      llmService
+    );
+    allResults = [...allResults, ...biasResults];
   }
 
   // Calculate summary statistics

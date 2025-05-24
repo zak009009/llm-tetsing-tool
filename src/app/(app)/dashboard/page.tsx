@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { AlertTriangle, FlaskConical, Zap, Settings, ShieldCheck } from "lucide-react";
+import { AlertTriangle, FlaskConical, Settings, ShieldCheck, FileQuestion, Scale } from "lucide-react";
 
 export default function DashboardPage() {
   return (
@@ -50,21 +50,38 @@ export default function DashboardPage() {
         <Card className="shadow-md hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              DoS Attack Simulator
+              Hallucination Tester
             </CardTitle>
-            <Zap className="h-5 w-5 text-muted-foreground" />
+            <FileQuestion className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground mb-4">
-              Evaluate LLM resilience against denial-of-service scenarios.
+              Evaluate LLM tendency to generate fabricated information.
             </p>
             <Button asChild size="sm">
-              <Link href="/dos-attack">Go to Simulator</Link>
+              <Link href="/hallucination-tester">Go to Tester</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md hover:shadow-lg transition-shadow md:col-span-2 lg:col-span-1">
+        <Card className="shadow-md hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Bias Detector
+            </CardTitle>
+            <Scale className="h-5 w-5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-4">
+              Identify potential biases in LLM responses or provided text.
+            </p>
+            <Button asChild size="sm">
+              <Link href="/bias-detector">Go to Detector</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-md hover:shadow-lg transition-shadow lg:col-start-3">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Configuration
@@ -99,7 +116,8 @@ export default function DashboardPage() {
           <ul className="list-disc list-inside mt-2 text-sm text-muted-foreground space-y-1">
             <li><strong>Prompt Injection:</strong> Tricking LLMs into executing unintended actions.</li>
             <li><strong>Data Poisoning:</strong> Manipulating training data to compromise LLM behavior.</li>
-            <li><strong>Denial of Service:</strong> Overwhelming LLMs with requests to degrade performance.</li>
+            <li><strong>Model Hallucinations:</strong> Instances where the LLM generates incorrect or nonsensical information with high confidence.</li>
+            <li><strong>Bias Detection:</strong> Identifying and mitigating harmful biases in LLM outputs.</li>
           </ul>
           <p className="mt-4 text-sm text-muted-foreground">
             Use these tools responsibly and ethically for learning and improving LLM security.

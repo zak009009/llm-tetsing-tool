@@ -2,10 +2,9 @@ import {
   LayoutDashboard,
   AlertTriangle,
   FlaskConical,
-  Zap,
   Settings,
-  ShieldAlert,
-  PackageSearch
+  FileQuestion, 
+  Scale,      // Changed from Balance
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -36,10 +35,16 @@ export const navLinks: NavLink[] = [
     tooltip: 'Test Data Poisoning',
   },
   {
-    href: '/dos-attack',
-    label: 'DoS Attack Sim',
-    icon: Zap,
-    tooltip: 'Simulate DoS Attacks',
+    href: '/hallucination-tester', 
+    label: 'Hallucination Test',
+    icon: FileQuestion,
+    tooltip: 'Test for LLM Hallucinations',
+  },
+  {
+    href: '/bias-detector', 
+    label: 'Bias Detector',
+    icon: Scale, // Changed from Balance
+    tooltip: 'Detect Bias in LLM Outputs',
   },
   {
     href: '/configuration',
@@ -48,14 +53,3 @@ export const navLinks: NavLink[] = [
     tooltip: 'App Settings',
   },
 ];
-
-// Example of a group, if needed later
-// export const groupLinks = [
-//   {
-//     label: "Security Tests",
-//     icon: ShieldAlert,
-//     links: [
-//       navLinks[1], navLinks[2], navLinks[3]
-//     ]
-//   }
-// ]

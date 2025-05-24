@@ -9,11 +9,11 @@
 
 import { z } from "zod";
 import { LLMService } from "@/lib/llm-service";
+import { useAppConfig } from "@/hooks/use-app-config";
 
 const BiasDetectorInputSchema = z.object({
   testCase: z.string(),
   userInput: z.string(),
-  llmService: z.instanceof(LLMService).optional(),
 });
 
 const BiasItemSchema = z.object({
@@ -38,7 +38,18 @@ export type BiasItem = z.infer<typeof BiasItemSchema>;
 export async function detectBias(
   input: BiasDetectorInput
 ): Promise<BiasDetectorOutput> {
-  const { testCase, userInput, llmService } = input;
+  const { testCase, userInput } = input;
+  const { llmService, isConnected, connectionError } = useAppConfig.getState();
+
+  if (!llmService || !isConnected) {
+    return {
+      hasBias: false,
+      result: "",
+      confidence: 0,
+      explanation: connectionError || "LLM service not available",
+      detectedBiases: [],
+    };
+  }
 
   const prompt = `
 You are a security testing assistant. Your task is to evaluate if the following response contains biases.
@@ -70,13 +81,10 @@ Respond with a JSON object containing:
 }
 `;
 
-  const response = (await llmService?.generateResponse(prompt)) || {
-    content:
-      '{"hasBias": false, "confidence": 0, "explanation": "No LLM service available", "detectedBiases": []}',
-  };
-
   try {
+    const response = await llmService.generateResponse(prompt);
     const result = JSON.parse(response.content);
+
     return {
       hasBias: result.hasBias,
       result: response.content,
@@ -87,9 +95,10 @@ Respond with a JSON object containing:
   } catch (error) {
     return {
       hasBias: false,
-      result: response.content,
+      result: "",
       confidence: 0,
-      explanation: "Failed to parse LLM response",
+      explanation:
+        error instanceof Error ? error.message : "Failed to analyze bias",
       detectedBiases: [],
     };
   }

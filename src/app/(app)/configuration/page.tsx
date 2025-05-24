@@ -31,11 +31,13 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { useAppConfig } from "@/hooks/use-app-config";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   provider: z.enum(["ollama", "openai", "anthropic", "custom"]),
@@ -51,20 +53,23 @@ type FormValues = z.infer<typeof formSchema>;
 export default function ConfigurationPage() {
   const {
     llmProvider,
-    ollamaBaseUrl,
-    apiEndpoint,
+    baseUrl,
     apiKey,
     modelName,
     temperature,
     maxTokens,
+    isConnected,
+    connectionError,
     setLLMProvider,
-    setOllamaBaseUrl,
-    setApiEndpoint,
+    setBaseUrl,
     setApiKey,
     setModelName,
     setTemperature,
     setMaxTokens,
+    testConnection,
   } = useAppConfig();
+
+  const [isTesting, setIsTesting] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -72,7 +77,7 @@ export default function ConfigurationPage() {
       provider: llmProvider,
       apiKey: apiKey,
       model: modelName,
-      endpoint: llmProvider === "ollama" ? ollamaBaseUrl : apiEndpoint,
+      endpoint: baseUrl,
       temperature: temperature,
       maxTokens: maxTokens,
     },
@@ -83,37 +88,51 @@ export default function ConfigurationPage() {
       provider: llmProvider,
       apiKey: apiKey,
       model: modelName,
-      endpoint: llmProvider === "ollama" ? ollamaBaseUrl : apiEndpoint,
+      endpoint: baseUrl,
       temperature: temperature,
       maxTokens: maxTokens,
     });
-  }, [
-    llmProvider,
-    ollamaBaseUrl,
-    apiEndpoint,
-    apiKey,
-    modelName,
-    temperature,
-    maxTokens,
-  ]);
+  }, [llmProvider, baseUrl, apiKey, modelName, temperature, maxTokens]);
 
-  const onSubmit = (data: FormValues) => {
-    setLLMProvider(data.provider);
-    setModelName(data.model);
-    setTemperature(data.temperature);
-    if (data.maxTokens) setMaxTokens(data.maxTokens);
+  const onSubmit = async (data: FormValues) => {
+    try {
+      setLLMProvider(data.provider as LLMProvider);
+      setModelName(data.model);
+      setTemperature(data.temperature);
+      if (data.maxTokens) setMaxTokens(data.maxTokens);
+      setBaseUrl(data.endpoint || "");
 
-    if (data.provider === "ollama") {
-      setOllamaBaseUrl(data.endpoint || "http://127.0.0.1:11434");
-    } else {
-      setApiEndpoint(data.endpoint || "");
-      setApiKey(data.apiKey || "");
+      if (data.provider !== "ollama") {
+        setApiKey(data.apiKey || "");
+      }
+
+      // Test connection after updating configuration
+      setIsTesting(true);
+      const isConnected = await testConnection();
+      setIsTesting(false);
+
+      if (isConnected) {
+        toast({
+          title: "Configuration Updated",
+          description:
+            "Your LLM settings have been saved and connection tested successfully.",
+        });
+      } else {
+        toast({
+          title: "Configuration Updated",
+          description:
+            "Settings saved but connection test failed. Please check your configuration.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      setIsTesting(false);
+      toast({
+        title: "Error",
+        description: "Failed to save configuration. Please try again.",
+        variant: "destructive",
+      });
     }
-
-    toast({
-      title: "Configuration Updated",
-      description: "Your LLM settings have been saved successfully.",
-    });
   };
 
   return (
@@ -122,6 +141,22 @@ export default function ConfigurationPage() {
         title="Configuration"
         description="Personnalisez les connexions LLM et les paramètres de l'application."
       />
+
+      {connectionError && (
+        <Alert variant="destructive">
+          <AlertTitle>Erreur de Connexion</AlertTitle>
+          <AlertDescription>{connectionError}</AlertDescription>
+        </Alert>
+      )}
+
+      {isConnected && (
+        <Alert>
+          <AlertTitle>Connecté</AlertTitle>
+          <AlertDescription>
+            La connexion au modèle LLM est établie.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="llm" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
@@ -282,12 +317,22 @@ export default function ConfigurationPage() {
                     )}
                   />
 
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90"
-                  >
-                    Enregistrer la Configuration
-                  </Button>
+                  <div className="flex gap-4">
+                    <Button
+                      type="submit"
+                      className="flex-1 bg-primary hover:bg-primary/90"
+                      disabled={isTesting}
+                    >
+                      {isTesting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Test de Connexion...
+                        </>
+                      ) : (
+                        "Enregistrer et Tester"
+                      )}
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </CardContent>
